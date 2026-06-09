@@ -1,10 +1,9 @@
 package lk.ijse.inpfinalexam;
 
 import javafx.application.Platform;
+import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
-import javafx.scene.control.Label;
-import javafx.scene.control.TextArea;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -27,32 +26,73 @@ public class ClientController {
     @FXML
     private Label itemName;
 
+    private DataInputStream dataInputStream;
+    private DataOutputStream dataOutputStream;
+    private Socket socket;
 
-    public void initialize(){
+    @FXML
+    public void initialize() {
 
-        new Thread(()->{
+        new Thread(() -> {
 
             try {
-                Socket socket = new Socket("127.0.0.1",6000);
+                socket = new Socket("127.0.0.1", 6000);
 
-                DataOutputStream dos = new DataOutputStream(socket.getOutputStream());
-                DataInputStream dis = new DataInputStream(socket.getInputStream());
+                dataInputStream = new DataInputStream(socket.getInputStream());
+                dataOutputStream = new DataOutputStream(socket.getOutputStream());
 
-                Platform.runLater(()->{
-                    clientTextField.appendText("Enter your name: ");
+                String username = dataInputStream.readUTF();
 
-                    if(clientTextField.getText().equals("")){
-                        clientUsername.setText("Enter your name: ");
-                    }
+                Platform.runLater(() ->
+                        clientUsername.setText(username)
+                );
 
-                });
+                while (true) {
+                    String msg = dataInputStream.readUTF();
 
+                    Platform.runLater(() ->
+                            clientTextArea.appendText(msg + "\n")
+                    );
+                }
 
-
-            }catch (Exception e){
-            e.printStackTrace();
+            } catch (Exception e) {
+                e.printStackTrace();
             }
+
         }).start();
     }
-}
 
+    @FXML
+    public void clientBidSubmitOnAction(ActionEvent event) {
+
+        try {
+
+            String msg = clientTextField.getText().trim();
+
+            if (msg.isEmpty()) return;
+
+            dataOutputStream.writeUTF(msg);
+            dataOutputStream.flush();
+
+            clientTextField.clear();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @FXML
+    public void clientDisconnectOnAction(ActionEvent event) {
+
+        try {
+            if (socket != null && !socket.isClosed()) {
+                socket.close();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            Platform.exit();
+            System.exit(0);
+        }
+    }
+}
