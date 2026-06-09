@@ -126,9 +126,6 @@ public class ClientController {
             }
         } catch (Exception e) {
             e.printStackTrace();
-        } finally {
-            Platform.exit();
-            System.exit(0);
         }
     }
 }
