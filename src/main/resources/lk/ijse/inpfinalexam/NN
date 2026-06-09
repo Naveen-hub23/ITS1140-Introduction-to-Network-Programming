@@ -1,0 +1,67 @@
+package lk.ijse.socket_with_ui;
+
+import javafx.application.Platform;
+import javafx.event.ActionEvent;
+import javafx.fxml.FXML;
+import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
+
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.net.Socket;
+
+public class ClientController {
+
+    @FXML
+    private TextArea clientTextarea;
+
+    @FXML
+    private TextField clientTextfield;
+
+    private DataInputStream dataInputStream;
+    private DataOutputStream dataOutputStream;
+
+    public void initialize() {
+        new Thread(() -> {
+            try {
+                Socket socket = new Socket("127.0.0.1", 3000);
+
+                dataInputStream = new DataInputStream(socket.getInputStream());
+                dataOutputStream = new DataOutputStream(socket.getOutputStream());
+
+                Platform.runLater(() -> {
+                    clientTextarea.appendText("Connected to Server!\n");
+                });
+
+                while (true) {
+                    String msg = dataInputStream.readUTF();
+                    Platform.runLater(() -> {
+                        clientTextarea.appendText(msg + "\n");
+                    });
+                }
+
+            } catch (Exception e) {
+                Platform.runLater(() -> {
+                    clientTextarea.appendText("Connection failed!\n");
+                });
+                e.printStackTrace();
+            }
+        }).start();
+    }
+
+    @FXML
+    public void clientSendOnAction(ActionEvent event) {
+        try {
+            String msg = clientTextfield.getText().trim();
+            if (msg.isEmpty()) return;
+
+            dataOutputStream.writeUTF(msg);
+            dataOutputStream.flush();
+
+            clientTextfield.clear();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}

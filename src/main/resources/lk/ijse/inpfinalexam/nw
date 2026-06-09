@@ -1,0 +1,135 @@
+package lk.ijse.socket_with_ui;
+
+import javafx.application.Platform;
+import javafx.event.ActionEvent;
+import javafx.fxml.FXML;
+import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
+
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.util.concurrent.CopyOnWriteArrayList;
+
+public class ServerController {
+
+    @FXML
+    private TextArea serverTextarea;
+
+    @FXML
+    private TextField serverTextfield;
+
+
+        private static final CopyOnWriteArrayList<ClientHandler> clients = new CopyOnWriteArrayList<>();
+
+
+    private static int clientCount = 0;
+
+    public void initialize() {
+        new Thread(() -> {
+            try {
+                ServerSocket serverSocket = new ServerSocket(3000);
+
+                Platform.runLater(() -> {
+                    serverTextarea.appendText("Server started on port 3000...\n");
+                });
+
+                while (true) {
+                    Socket socket = serverSocket.accept();
+
+                    // NEW: give this connection a unique id
+                    int clientId = ++clientCount;
+
+                    Platform.runLater(() -> {
+                        serverTextarea.appendText("Client " + clientId + " connected.\n");
+                    });
+
+                    // NEW: one handler per client
+                    ClientHandler clientHandler = new ClientHandler(socket, clientId);
+                    clients.add(clientHandler);
+                    clientHandler.start();
+                }
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }).start();
+    }
+
+    private void broadcast(String msg) {
+        for (ClientHandler client : clients) {
+            try {
+                client.dos.writeUTF(msg);
+                client.dos.flush();
+            } catch (Exception e) {
+                clients.remove(client);
+                try {
+                    client.socket.close();
+                } catch (IOException ignored) {
+                }
+            }
+        }
+    }
+
+    @FXML
+    public void serverSendOnAction(ActionEvent event) {
+        try {
+            String msg = serverTextfield.getText().trim();
+            if (msg.isEmpty()) return;
+
+            String finalMsg = "Server : " + msg;
+
+            serverTextarea.appendText(finalMsg + "\n");
+            broadcast(finalMsg);
+            serverTextfield.clear();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+
+    private class ClientHandler extends Thread {
+        private final Socket socket;
+        private final int clientId;
+        private final DataInputStream dis;
+        private final DataOutputStream dos;
+
+        public ClientHandler(Socket socket, int clientId) throws IOException {
+            this.socket = socket;
+            this.clientId = clientId;
+            this.dis = new DataInputStream(socket.getInputStream());
+            this.dos = new DataOutputStream(socket.getOutputStream());
+        }
+
+        @Override
+        public void run() {
+            try {
+                while (true) {
+                    String msg = dis.readUTF();
+
+                    String finalMsg = "Client " + clientId + " : " + msg;
+
+                    Platform.runLater(() -> {
+                        serverTextarea.appendText(finalMsg + "\n");
+                    });
+
+                    broadcast(finalMsg);
+                }
+            } catch (Exception e) {
+                clients.remove(this);
+
+                Platform.runLater(() -> {
+                    serverTextarea.appendText("Client " + clientId + " disconnected.\n");
+                });
+
+                try {
+                    socket.close();
+                } catch (IOException ignored) {
+                }
+            }
+        }
+    }
+}
