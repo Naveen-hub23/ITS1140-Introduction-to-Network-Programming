@@ -15,6 +15,14 @@ public class HelloApplication extends Application {
         stage.setTitle("Hello!");
         stage.setScene(scene);
         stage.show();
+
+        Stage stage2 = new Stage();
+        FXMLLoader fxmlLoader1 = new FXMLLoader(HelloApplication.class.getResource("client.fxml"));
+        Scene scene1 = new Scene(fxmlLoader1.load(), 800, 600);
+        stage2.setTitle("Hello!");
+        stage2.setScene(scene1);
+        stage2.show();
+
     }
 
     public static void main(String[] args) {
